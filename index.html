@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#08090f">
+<link rel="manifest" href="manifest.json">
+<title>NOVA CLOCK</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#08090f;color:#fff;
+ font-family:Arial,sans-serif;
+ min-height:100vh;display:flex;justify-content:center;
+}
+.app{width:100%;max-width:480px;padding:22px}
+header{display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:23px;font-weight:800;letter-spacing:3px}
+button,select,input{
+ background:#171925;color:white;border:1px solid #303447;
+ padding:12px;border-radius:12px;font-size:15px;
+}
+button{cursor:pointer}
+button.active{background:#6654ff}
+.tabs{display:flex;gap:7px;margin:25px 0}
+.tabs button{flex:1;padding:10px 4px;font-size:13px}
+.panel{
+ background:#11131e;border:1px solid #252838;
+ border-radius:24px;padding:25px 15px;text-align:center;
+ margin-bottom:15px;
+}
+.time{font-size:58px;font-weight:700;letter-spacing:-2px}
+.date{color:#999eaf;margin-top:12px}
+.label{color:#9298ac;font-size:12px;letter-spacing:2px}
+.big{font-size:45px;margin:20px 0}
+.controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.settings{text-align:left}
+.settings label{display:block;margin:15px 0}
+input[type=time]{width:100%;margin:12px 0}
+select{width:100%;margin-top:8px}
+footer{text-align:center;color:#777;font-size:12px;margin:20px}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<header>
+ <div class="logo">✦ NOVA</div>
+ <button onclick="fullScreen()">⛶</button>
+</header>
+
+<div class="tabs">
+<button class="active" onclick="show('clock',this)">Clock</button>
+<button onclick="show('timer',this)">Timer</button>
+<button onclick="show('stopwatch',this)">Stopwatch</button>
+<button onclick="show('alarm',this)">Alarm</button>
+</div>
+
+<section id="clock">
+<div class="panel">
+<div class="label">LOCAL TIME</div>
+<div class="time" id="time">00:00</div>
+<div class="date" id="date"></div>
+</div>
+</section>
+
+<section id="timer" hidden>
+<div class="panel">
+<div class="label">TIMER</div>
+<div class="big" id="timerDisplay">00:00</div>
+<div class="controls">
+<input id="minutes" type="number" min="0" max="999" value="5" style="width:90px">
+<button onclick="startTimer()">Start</button>
+<button onclick="pauseTimer()">Pause</button>
+<button onclick="resetTimer()">Reset</button>
+</div>
+</div>
+</section>
+
+<section id="stopwatch" hidden>
+<div class="panel">
+<div class="label">STOPWATCH</div>
+<div class="big" id="swDisplay">00:00</div>
+<div class="controls">
+<button onclick="startSW()">Start</button>
+<button onclick="pauseSW()">Pause</button>
+<button onclick="resetSW()">Reset</button>
+</div>
+</div>
+</section>
+
+<section id="alarm" hidden>
+<div class="panel">
+<div class="label">ALARM</div>
+<input type="time" id="alarmTime" value="06:00">
+<div class="controls">
+<button onclick="saveAlarm()">Save Alarm</button>
+<button onclick="disableAlarm()">Disable</button>
+</div>
+<p id="alarmStatus">Alarm disabled</p>
+</div>
+</section>
+
+<section id="settings" hidden>
+<div class="panel settings">
+<div class="label">SETTINGS</div>
+<label>Theme
+<select id="theme" onchange="setTheme(this.value)">
+<option value="obsidian">Obsidian</option>
+<option value="violet">Violet</option>
+<option value="blue">Arctic Blue</option>
+<option value="white">White</option>
+</select>
+</label>
+<label><input type="checkbox" id="format" onchange="updateClock()"> 24-hour format</label>
+<label><input type="checkbox" id="seconds" onchange="updateClock()"> Show seconds</label>
+</div>
+</section>
+
+<div class="controls">
+<button onclick="show('settings',null)">⚙ Settings</button>
+</div>
+
+<footer>NOVA CLOCK · TIME YOUR WAY</footer>
+</div>
+
+<script>
+function updateClock(){
+ const now=new Date();
+ let opt={hour:'2-digit',minute:'2-digit'};
+ if(seconds.checked)opt.second='2-digit';
+ opt.hour12=!format.checked;
+ time.textContent=now.toLocaleTimeString([],opt);
+ date.textContent=now.toLocaleDateString([],{
+ weekday:'long',day:'numeric',month:'long',year:'numeric'
+ });
+}
+setInterval(updateClock,1000);
+updateClock();
+
+function show(id,btn){
+ ['clock','timer','stopwatch','alarm','settings'].forEach(x=>{
+ document.getElementById(x).hidden=x!==id;
+ });
+ document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));
+ if(btn)btn.classList.add('active');
+}
+
+function fullScreen(){
+ if(!document.fullscreenElement)
+ document.documentElement.requestFullscreen?.();
+ else document.exitFullscreen?.();
+}
+
+function setTheme(t){
+ document.body.style.background=
+ t==='violet'?'#10091e':t==='blue'?'#071522':
+ t==='white'?'#eeeeee':'#08090f';
+ document.body.style.color=t==='white'?'#111':'white';
+ localStorage.theme=t;
+}
+setTheme(localStorage.theme||'obsidian');
+theme.value=localStorage.theme||'obsidian';
+
+let timerEnd=0,timerInt=null,remaining=0;
+function startTimer(){
+ if(!timerInt){
+ remaining=remaining||Number(minutes.value)*60;
+ timerEnd=Date.now()+remaining*1000;
+ timerInt=setInterval(()=>{
+ remaining=Math.max(0,Math.ceil((timerEnd-Date.now())/1000));
+ timerDisplay.textContent=
+ String(Math.floor(remaining/60)).padStart(2,'0')+':'+
+ String(remaining%60).padStart(2,'0');
+ if(!remaining){pauseTimer();alert('Timer finished!');}
+ },250);
+ }
+}
+function pauseTimer(){
+ clearInterval(timerInt);timerInt=null;
+}
+function resetTimer(){
+ pauseTimer();remaining=0;timerDisplay.textContent='00:00';
+}
+
+let swStart=0,swElapsed=0,swInt=null;
+function startSW(){
+ if(!swInt){
+ swStart=Date.now()-swElapsed;
+ swInt=setInterval(()=>{
+ swElapsed=Date.now()-swStart;
+ swDisplay.textContent=
+ new Date(swElapsed).toISOString().slice(14,19);
+ },100);
+ }
+}
+function pauseSW(){clearInterval(swInt);swInt=null}
+function resetSW(){
+ pauseSW();swElapsed=0;swDisplay.textContent='00:00';
+}
+
+let alarmEnabled=false,alarmRang='';
+function saveAlarm(){
+ alarmEnabled=true;
+ alarmStatus.textContent='Alarm enabled: '+alarmTime.value;
+ localStorage.alarm=alarmTime.value;
+}
+function disableAlarm(){
+ alarmEnabled=false;alarmStatus.textContent='Alarm disabled';
+}
+if(localStorage.alarm){
+ alarmTime.value=localStorage.alarm;
+ alarmEnabled=true;
+ alarmStatus.textContent='Alarm enabled: '+localStorage.alarm;
+}
+setInterval(()=>{
+ if(alarmEnabled){
+ let now=new Date();
+ let hm=now.toTimeString().slice(0,5);
+ let key=now.toDateString()+hm;
+ if(hm===alarmTime.value&&alarmRang!==key){
+ alarmRang=key;
+ alert('NOVA CLOCK ALARM!');
+ }
+ }
+},1000);
+
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('./sw.js').catch(console.error);
+}
+</script>
+</body>
+</html>
